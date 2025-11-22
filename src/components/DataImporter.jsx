@@ -22,10 +22,11 @@ export default function DataImporter() {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true, // Salta líneas en blanco
-      transformHeader: (h) => h.trim().replace(/^\ufeff/, ''),
+      // Esta línea es vital: elimina espacios y el carácter invisible BOM de Windows
+      transformHeader: (h) => h.trim().replace(/^\ufeff/, ''), 
       complete: async (results) => {
         
-        // Validación de seguridad: Verificar si hay datos y si las columnas existen
+        // Validación de seguridad: Verificar si hay datos
         if (results.data.length === 0) {
           setError('El archivo parece estar vacío o no se pudo leer.');
           setLoading(false);
@@ -37,7 +38,7 @@ export default function DataImporter() {
         // Verificamos que exista la columna CODIGO
         if (!primerFila.hasOwnProperty('CODIGO')) {
           console.error("Encabezados encontrados:", Object.keys(primerFila));
-          setError('Error de formato: No se encuentra la columna "CODIGO". Verifica que la fila 1 del archivo tenga los títulos exactos.');
+          setError('Error de formato: No se encuentra la columna "CODIGO". Verifica que la fila 1 del archivo tenga los títulos exactos: CODIGO,DESCRIPCION,PRECIO S/IVA');
           setLoading(false);
           return;
         }
@@ -70,7 +71,6 @@ export default function DataImporter() {
       // Ignorar filas que no tengan código
       if (!item.CODIGO || item.CODIGO.trim() === '') continue;
 
-      // Limpieza de datos
       const codigo = item.CODIGO.toString().trim(); 
       
       // Buscamos el precio. Puede venir como 'PRECIO S/IVA' o 'PRECIO'
@@ -79,11 +79,16 @@ export default function DataImporter() {
 
       const descripcion = item.DESCRIPCION ? item.DESCRIPCION.trim() : 'Sin descripción';
 
-      // Referencia al documento (Usamos el CODIGO como ID único)
-      const docRef = doc(db, 'products', codigo);
+      // --- CORRECCIÓN CRÍTICA DE FIREBASE ---
+      // Las barras "/" (ej: D129/C) rompen la base de datos porque cree que son carpetas.
+      // Reemplazamos "/" por "_" SOLO para el ID interno del documento.
+      const idSeguro = codigo.replace(/\//g, '_'); 
+      
+      // Referencia al documento usando el ID seguro
+      const docRef = doc(db, 'products', idSeguro);
 
-      // Datos a guardar (Solo actualizamos descripción y precio)
-      // IMPORTANTE: No incluimos 'stock' ni 'location' aquí para no borrarlos si ya existen.
+      // Datos a guardar 
+      // Aquí sí guardamos el 'codigo' original con la barra para mostrarlo bien en pantalla.
       const productData = {
         codigo: codigo,
         descripcion: descripcion,
@@ -92,7 +97,7 @@ export default function DataImporter() {
       };
 
       // { merge: true } es VITAL. Si el producto existe, actualiza campos. Si no, lo crea.
-      // Si no pones esto, se borraría el stock existente.
+      // Esto evita borrar el stock y la ubicación existentes.
       batch.set(docRef, productData, { merge: true });
 
       operationCount++;
