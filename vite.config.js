@@ -8,7 +8,7 @@ export default defineConfig({
     VitePWA({ 
       registerType: 'autoUpdate',
       manifest: {
-        name: 'Gestión Repuestos Victor',
+        name: 'Gestión Repuestos Charata',
         short_name: 'Inventario',
         description: 'Control de stock y precios',
         theme_color: '#0f172a',
