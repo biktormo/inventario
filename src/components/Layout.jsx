@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Box, Upload, Menu, X } from 'lucide-react';
+import { Home, Box, Upload, Menu, X, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const { currentUser, logout } = useAuth();
 
   const navItems = [
     { icon: Home, label: 'Inicio / Buscador', path: '/' },
@@ -19,6 +21,16 @@ export default function Layout({ children }) {
     return false;
   };
 
+  // Función para manejar el cierre de sesión
+  const handleLogout = async () => {
+    try {
+      await logout();
+      // El ProtectedRoute en App.jsx se encargará de redirigir al login
+    } catch (error) {
+      console.error("Error al cerrar sesión", error);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-100">
       {/* --- Sidebar Desktop (Oculto en celular) --- */}
@@ -28,6 +40,7 @@ export default function Layout({ children }) {
           <span>Victor Repuestos</span>
         </div>
         
+        {/* Navegación Principal */}
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => (
             <Link 
@@ -45,8 +58,20 @@ export default function Layout({ children }) {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 text-xs text-slate-500 text-center">
-          v1.0 - Sistema de Stock
+        {/* Footer del Sidebar (Info Usuario + Salir) */}
+        <div className="p-4 border-t border-slate-800 bg-slate-900">
+          <div className="mb-3 px-2">
+            <p className="text-xs text-slate-500 uppercase tracking-wider font-bold">Usuario</p>
+            <p className="text-sm text-slate-300 truncate" title={currentUser?.email}>
+              {currentUser?.email}
+            </p>
+          </div>
+          <button 
+            onClick={handleLogout} 
+            className="flex items-center gap-2 w-full p-2 text-red-400 hover:text-red-300 hover:bg-slate-800 rounded transition text-sm font-medium"
+          >
+            <LogOut size={18} /> Cerrar Sesión
+          </button>
         </div>
       </aside>
 
@@ -68,25 +93,43 @@ export default function Layout({ children }) {
         
         {/* Menú Desplegable Mobile */}
         {isMobileMenuOpen && (
-           <div className="md:hidden bg-slate-800 text-white absolute top-14 left-0 w-full z-50 shadow-xl border-t border-slate-700">
-             {navItems.map(item => (
-               <Link 
-                 key={item.path} 
-                 to={item.path} 
-                 onClick={() => setIsMobileMenuOpen(false)} 
-                 className={`flex items-center gap-3 p-4 border-b border-slate-700 ${
-                    isActive(item.path) ? 'bg-slate-700 text-blue-400' : ''
-                 }`}
-               >
-                 <item.icon size={20} />
-                 {item.label}
-               </Link>
-             ))}
+           <div className="md:hidden bg-slate-800 text-white absolute top-14 left-0 w-full z-50 shadow-xl border-t border-slate-700 flex flex-col h-[calc(100vh-3.5rem)]">
+             <div className="flex-1 overflow-y-auto">
+               {navItems.map(item => (
+                 <Link 
+                   key={item.path} 
+                   to={item.path} 
+                   onClick={() => setIsMobileMenuOpen(false)} 
+                   className={`flex items-center gap-3 p-4 border-b border-slate-700 ${
+                      isActive(item.path) ? 'bg-slate-700 text-blue-400' : ''
+                   }`}
+                 >
+                   <item.icon size={20} />
+                   {item.label}
+                 </Link>
+               ))}
+             </div>
+             
+             {/* Footer Mobile */}
+             <div className="p-4 border-t border-slate-700 bg-slate-900">
+                <div className="text-sm text-slate-400 mb-3 truncate px-2">
+                  {currentUser?.email}
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex items-center gap-2 w-full p-3 bg-red-600 text-white rounded justify-center font-medium"
+                >
+                  <LogOut size={20} /> Cerrar Sesión
+                </button>
+             </div>
            </div>
         )}
 
         {/* Contenido de la página */}
-        <main className="flex-1 overflow-y-auto bg-gray-50 relative">
+        <main className="flex-1 overflow-y-auto bg-gray-50 relative scroll-smooth">
           {children}
         </main>
       </div>
