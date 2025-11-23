@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
-import { Search, MapPin, Package, PlusCircle } from 'lucide-react';
+import { Search, MapPin, Package, PlusCircle, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '../utils';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -11,6 +11,7 @@ export default function InventoryList() {
   const [products, setProducts] = useState([]);
   const [filter, setFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [showLowStock, setShowLowStock] = useState(false); // Estado para el filtro de stock bajo
   
   // Estados para la edición rápida de ubicación
   const [editingLoc, setEditingLoc] = useState(null); 
@@ -24,8 +25,6 @@ export default function InventoryList() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        // Nota: Para bases de datos muy grandes (5000+), idealmente se usa paginación.
-        // Para este caso, cargamos todo en memoria para que el buscador sea instantáneo.
         const querySnapshot = await getDocs(collection(db, "products"));
         const items = [];
         querySnapshot.forEach((doc) => {
@@ -41,21 +40,22 @@ export default function InventoryList() {
     fetchProducts();
   }, []);
 
-  // Lógica de filtrado (Buscador)
-  const filtered = products.filter(p => 
-    p.codigo.toLowerCase().includes(filter.toLowerCase()) || 
-    p.descripcion.toLowerCase().includes(filter.toLowerCase())
-  );
+  // Lógica de filtrado (Buscador + Filtro Stock Bajo)
+  const filtered = products.filter(p => {
+    const matchesSearch = p.codigo.toLowerCase().includes(filter.toLowerCase()) || 
+                          p.descripcion.toLowerCase().includes(filter.toLowerCase());
+    
+    const matchesStock = showLowStock ? (p.stock || 0) <= 2 : true; // Umbral de 2 unidades para "Crítico"
+
+    return matchesSearch && matchesStock;
+  });
 
   // Función para actualizar stock y registrar movimiento
   const handleStockChange = async (id, currentStock, amount) => {
     const stockActual = currentStock || 0;
     const newStock = stockActual + amount;
     
-    // (Opcional) Descomentar si no quieres permitir stock negativo
-    // if (newStock < 0) return;
-
-    // 1. Actualización Optimista en UI (para que se sienta rápido)
+    // 1. Actualización Optimista en UI
     setProducts(products.map(p => p.id === id ? { ...p, stock: newStock } : p));
     
     // 2. Actualización en Firebase
@@ -70,17 +70,15 @@ export default function InventoryList() {
       }
     } catch (error) {
       console.error("Error actualizando stock:", error);
-      // Si falla, revertimos el cambio visual (opcional)
+      // Revertir si falla
       setProducts(products.map(p => p.id === id ? { ...p, stock: stockActual } : p));
     }
   };
 
   // Función para guardar la ubicación editada
   const saveLocation = async (id) => {
-    // Actualizamos UI
     setProducts(products.map(p => p.id === id ? { ...p, location: tempLoc } : p));
     
-    // Actualizamos Firebase
     try {
       const ref = doc(db, "products", id);
       await updateDoc(ref, { location: tempLoc });
@@ -94,18 +92,38 @@ export default function InventoryList() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto pb-24">
       
-      {/* Barra de Buscador */}
-      <div className="mb-6 relative shadow-sm">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="text-gray-400" />
+      {/* Controles Superiores: Buscador y Filtro */}
+      <div className="mb-6 space-y-3">
+        {/* Buscador */}
+        <div className="relative shadow-sm">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="text-gray-400" />
+          </div>
+          <input
+            type="text"
+            className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-lg shadow-sm transition-shadow"
+            placeholder="Buscar repuesto por código o descripción..."
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+          />
         </div>
-        <input
-          type="text"
-          className="block w-full pl-10 pr-3 py-4 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-lg shadow-sm transition-shadow"
-          placeholder="Buscar repuesto por código o descripción..."
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
+
+        {/* Interruptor de Stock Bajo */}
+        <div className="flex items-center">
+          <label className="inline-flex items-center cursor-pointer select-none group">
+            <input 
+              type="checkbox" 
+              checked={showLowStock}
+              onChange={(e) => setShowLowStock(e.target.checked)}
+              className="sr-only peer"
+            />
+            <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-red-100 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-500"></div>
+            <span className={`ms-3 text-sm font-medium transition-colors flex items-center gap-2 ${showLowStock ? 'text-red-600' : 'text-gray-600'}`}>
+              <AlertTriangle size={16} className={showLowStock ? 'text-red-500' : 'text-gray-400'} />
+              Mostrar solo stock crítico (≤ 2)
+            </span>
+          </label>
+        </div>
       </div>
 
       {/* Estado de Carga */}
@@ -116,14 +134,14 @@ export default function InventoryList() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           
-          {/* Renderizado de Tarjetas (Limitado a 50 para rendimiento visual) */}
+          {/* Renderizado de Tarjetas */}
           {filtered.slice(0, 50).map((item) => (
             <div 
               key={item.id} 
               className={`bg-white rounded-lg shadow-md border-l-4 ${ (item.stock || 0) <= 2 ? 'border-red-500' : 'border-green-500'} p-4 flex flex-col justify-between hover:shadow-lg transition-shadow duration-200`}
             >
               
-              {/* Cabecera de la Tarjeta: Info y Precio */}
+              {/* Cabecera de la Tarjeta */}
               <div className="flex justify-between items-start mb-3">
                 <div className="pr-2 flex-1">
                   <span className="inline-block bg-slate-100 text-slate-600 text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider mb-1 border border-slate-200">
@@ -147,7 +165,7 @@ export default function InventoryList() {
                 </div>
               </div>
 
-              {/* Controles Inferiores: Ubicación y Stock */}
+              {/* Controles Inferiores */}
               <div className="flex items-end justify-between mt-2 pt-3 border-t border-dashed border-gray-200">
                 
                 {/* Sección Ubicación */}
@@ -190,7 +208,7 @@ export default function InventoryList() {
                       <span className="text-lg leading-none font-bold mb-0.5">-</span>
                     </button>
                     
-                    <span className="w-10 text-center font-bold text-slate-800 text-sm bg-white border-x border-slate-200 h-8 flex items-center justify-center">
+                    <span className={`w-10 text-center font-bold text-sm bg-white border-x border-slate-200 h-8 flex items-center justify-center ${(item.stock || 0) <= 2 ? 'text-red-600' : 'text-slate-800'}`}>
                       {item.stock || 0}
                     </span>
                     
@@ -212,7 +230,9 @@ export default function InventoryList() {
             <div className="col-span-full text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 text-gray-500">
               <Package className="mx-auto h-12 w-12 text-gray-300 mb-2" />
               <p className="text-lg font-medium">No se encontraron productos</p>
-              <p className="text-sm">Intenta con otro código o descripción.</p>
+              <p className="text-sm">
+                {showLowStock ? "No tienes productos con stock crítico." : "Intenta con otro código o descripción."}
+              </p>
             </div>
           )}
         </div>
