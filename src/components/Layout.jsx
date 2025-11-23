@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Box, Upload, Menu, X, LogOut } from 'lucide-react';
+// CORRECCIÓN: Una sola línea de importación con todos los íconos necesarios
+import { Home, Box, Upload, Menu, X, LogOut, History } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Home, Box, Upload, Menu, X, LogOut, History } from 'lucide-react'; // <--- Importar icono History
 
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -12,7 +12,7 @@ export default function Layout({ children }) {
   const navItems = [
     { icon: Home, label: 'Inicio / Buscador', path: '/' },
     { icon: Box, label: 'Inventario & Ubicaciones', path: '/inventory' },
-    { icon: History, label: 'Historial Movimientos', path: '/history' }, // <--- NUEVO ITEM
+    { icon: History, label: 'Historial Movimientos', path: '/history' },
     { icon: Upload, label: 'Actualizar Lista', path: '/upload' },
   ];
 
@@ -27,7 +27,6 @@ export default function Layout({ children }) {
   const handleLogout = async () => {
     try {
       await logout();
-      // El ProtectedRoute en App.jsx se encargará de redirigir al login
     } catch (error) {
       console.error("Error al cerrar sesión", error);
     }
