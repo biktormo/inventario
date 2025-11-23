@@ -8,6 +8,7 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext'; // <--- Importar Auth
 import CartSidebar from './components/CartSidebar';
 import ProtectedRoute from './components/ProtectedRoute'; // <--- Importar Protección
+import Movements from './pages/Movements';
 
 function App() {
   return (
@@ -27,6 +28,7 @@ function App() {
                     <Route path="/" element={<InventoryList />} />
                     <Route path="/inventory" element={<InventoryList />} />
                     <Route path="/upload" element={<DataImporter />} />
+                    <Route path="/history" element={<Movements />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

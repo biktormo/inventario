@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Box, Upload, Menu, X, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { Home, Box, Upload, Menu, X, LogOut, History } from 'lucide-react'; // <--- Importar icono History
 
 export default function Layout({ children }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -11,6 +12,7 @@ export default function Layout({ children }) {
   const navItems = [
     { icon: Home, label: 'Inicio / Buscador', path: '/' },
     { icon: Box, label: 'Inventario & Ubicaciones', path: '/inventory' },
+    { icon: History, label: 'Historial Movimientos', path: '/history' }, // <--- NUEVO ITEM
     { icon: Upload, label: 'Actualizar Lista', path: '/upload' },
   ];
 
