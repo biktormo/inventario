@@ -1,38 +1,56 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+// Contextos (Estado Global)
+import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
+
+// Componentes de Estructura y Seguridad
 import Layout from './components/Layout';
+import CartSidebar from './components/CartSidebar';
+import ProtectedRoute from './components/ProtectedRoute';
+
+// Páginas y Vistas
+import Dashboard from './pages/Dashboard';
 import InventoryList from './components/InventoryList';
 import DataImporter from './components/DataImporter';
-import Login from './pages/Login'; // <--- Importar Login
-import { CartProvider } from './context/CartContext';
-import { AuthProvider } from './context/AuthContext'; // <--- Importar Auth
-import CartSidebar from './components/CartSidebar';
-import ProtectedRoute from './components/ProtectedRoute'; // <--- Importar Protección
 import Movements from './pages/Movements';
+import Login from './pages/Login';
 
 function App() {
   return (
-    <AuthProvider> {/* 1. AuthProvider va PRIMERO que todo */}
-      <CartProvider>
+    <AuthProvider> {/* 1. Proveedor de Autenticación (El más externo) */}
+      <CartProvider> {/* 2. Proveedor del Carrito de Compras */}
         <BrowserRouter>
           <Routes>
-            {/* Ruta Pública: Login */}
+            
+            {/* --- Ruta Pública (No requiere login) --- */}
             <Route path="/login" element={<Login />} />
 
-            {/* Rutas Privadas: Todo lo demás */}
+            {/* --- Rutas Privadas (Requieren estar logueado) --- */}
             <Route path="/*" element={
-              <ProtectedRoute> {/* 2. Protegemos todo lo que está dentro */}
+              <ProtectedRoute>
                 <Layout>
+                  {/* El Sidebar del carrito está aquí para ser accesible en todas las pantallas internas */}
                   <CartSidebar />
+                  
                   <Routes>
-                    <Route path="/" element={<InventoryList />} />
+                    {/* Pantalla Principal: Dashboard de Métricas */}
+                    <Route path="/" element={<Dashboard />} />
+                    
+                    {/* Gestión de Inventario (Lista, Buscador, Stock) */}
                     <Route path="/inventory" element={<InventoryList />} />
-                    <Route path="/upload" element={<DataImporter />} />
+                    
+                    {/* Historial de Auditoría */}
                     <Route path="/history" element={<Movements />} />
+                    
+                    {/* Herramientas de Datos (Importar CSV / Exportar Backup) */}
+                    <Route path="/upload" element={<DataImporter />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>
             } />
+
           </Routes>
         </BrowserRouter>
       </CartProvider>
